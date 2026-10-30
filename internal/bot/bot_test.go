@@ -2,6 +2,7 @@ package bot
 
 import (
 	"context"
+	"encoding/json"
 	"errors"
 	"fmt"
 	"log/slog"
@@ -23,6 +24,26 @@ type posted struct {
 	channel string
 	user    string // set for an ephemeral message
 	values  url.Values
+}
+
+func TestPostLimitsEscapedMarkdown(t *testing.T) {
+	b, api, _ := newTestBot(t)
+	if err := b.post(context.Background(), "C1", "1.0", strings.Repeat("&", maxMarkdownChars), nil); err != nil {
+		t.Fatal(err)
+	}
+	var blocks []struct {
+		Text string `json:"text"`
+	}
+	if err := json.Unmarshal([]byte(api.posts[0].values.Get("blocks")), &blocks); err != nil {
+		t.Fatal(err)
+	}
+	if len(blocks) != 1 {
+		t.Fatalf("got %d blocks, want 1", len(blocks))
+	}
+	want := shorten(escapeReply(strings.Repeat("&", maxMarkdownChars), nil), maxMarkdownChars-1)
+	if blocks[0].Text != want || len([]rune(blocks[0].Text)) > maxMarkdownChars {
+		t.Errorf("markdown block was not limited after escaping: %d characters", len([]rune(blocks[0].Text)))
+	}
 }
 
 type fakeSlack struct {

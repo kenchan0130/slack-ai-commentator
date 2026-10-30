@@ -429,7 +429,7 @@ func (b *Bot) reply(ctx context.Context, j job) error {
 // post replies in a thread, as Markdown in a markdown block and as the text for notifications.
 // The text is escaped by slack-go, so a reply can only mention the allowed users and user groups.
 func (b *Bot) post(ctx context.Context, channel, threadTS, text string, allowedMentions []string) error {
-	text = escapeReply(shorten(text, maxMarkdownChars-1), allowedMentions)
+	text = shorten(escapeReply(text, allowedMentions), maxMarkdownChars-1)
 	const attempts = 3
 	for attempt := 1; ; attempt++ {
 		_, _, err := b.api.PostMessageContext(ctx, channel,
