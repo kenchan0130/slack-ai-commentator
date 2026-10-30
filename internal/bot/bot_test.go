@@ -6,6 +6,8 @@ import (
 	"errors"
 	"fmt"
 	"log/slog"
+	"net/http"
+	"net/http/httptest"
 	"net/url"
 	"path/filepath"
 	"regexp"
@@ -26,15 +28,32 @@ type posted struct {
 	values  url.Values
 }
 
+type postingSlack struct {
+	*fakeSlack
+	client *slack.Client
+}
+
+func (s *postingSlack) PostMessageContext(ctx context.Context, channel string, options ...slack.MsgOption) (string, string, error) {
+	return s.client.PostMessageContext(ctx, channel, options...)
+}
+
 func TestPostLimitsEscapedMarkdown(t *testing.T) {
+	requests := make(chan string, 1)
+	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		requests <- r.FormValue("blocks")
+		w.Header().Set("Content-Type", "application/json")
+		_, _ = w.Write([]byte(`{"ok":true,"channel":"C1","ts":"1.0"}`))
+	}))
+	defer server.Close()
 	b, api, _ := newTestBot(t)
+	b.api = &postingSlack{fakeSlack: api, client: slack.New("token", slack.OptionAPIURL(server.URL+"/"))}
 	if err := b.post(context.Background(), "C1", "1.0", strings.Repeat("&", maxMarkdownChars), nil); err != nil {
 		t.Fatal(err)
 	}
 	var blocks []struct {
 		Text string `json:"text"`
 	}
-	if err := json.Unmarshal([]byte(api.posts[0].values.Get("blocks")), &blocks); err != nil {
+	if err := json.Unmarshal([]byte(<-requests), &blocks); err != nil {
 		t.Fatal(err)
 	}
 	if len(blocks) != 1 {
