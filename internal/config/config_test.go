@@ -109,6 +109,7 @@ func TestLoadErrors(t *testing.T) {
 		"ssm":         {with(with(base(), "SLACK_APP_TOKEN", "ssm:///missing"), "AWS_SSM_REGION", "ap-northeast-1"), "SLACK_APP_TOKEN: access denied"},
 		"ssm region":  {with(base(), "SLACK_APP_TOKEN", "ssm:///x"), "AWS_SSM_REGION is required"},
 		"provider":    {with(base(), "LLM_PROVIDER", "azure"), "LLM_PROVIDER"},
+		"log format":  {with(base(), "LOG_FORMAT", "xml"), "LOG_FORMAT"},
 		"url":         {with(base(), "LLM_URL", ""), "LLM_URL is required"},
 		// AWS_REGION is not the region of Bedrock.
 		"bedrock region": {with(with(bedrock(), "AWS_BEDROCK_REGION", ""), "AWS_REGION", "us-east-1"), "AWS_BEDROCK_REGION is required"},

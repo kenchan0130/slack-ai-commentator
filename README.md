@@ -182,6 +182,7 @@ The app runs as `nobody` (UID 65534). A named volume mounted at `/opt/data` is w
 | `LLM_RETRIES` | (`10`) | Retries of a failed request, with backoff. A local LLM may still be loading its model when the app starts. |
 | `QUEUE_SIZE` | (`100`) | Posts waiting for a reply. Posts beyond it are skipped. |
 | `MAX_INPUT_CHARS` | (`4000`) | Posts longer than this are truncated before they are given to the LLM. |
+| `LOG_FORMAT` | (`text`) | Format of the log: `text` to read, or `json` for log collectors. The log shows the progress of each post, such as queued, generating and replied, with the rule, the channel and the time it took. It never has the text of a post or a reply. |
 | `DEBUG` | (`false`) | Logs Slack API calls when set to `true`. |
 
 `SLACK_BOT_TOKEN`, `SLACK_APP_TOKEN` and `LLM_API_KEY` can be read from AWS Systems Manager Parameter Store: set them to `ssm://<parameter name>`, e.g. `ssm:///app/slack_bot_token`, and set `AWS_SSM_REGION`. The default AWS credentials, such as the IAM role of an EC2 instance, are used.

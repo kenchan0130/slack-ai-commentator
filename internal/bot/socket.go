@@ -2,6 +2,7 @@ package bot
 
 import (
 	"context"
+	"fmt"
 	"time"
 
 	"github.com/slack-go/slack"
@@ -24,17 +25,17 @@ func (b *Bot) Listen(ctx context.Context, client *socketmode.Client) {
 
 		switch evt.Type {
 		case socketmode.EventTypeConnecting:
-			b.logger.Println("connecting to Slack")
+			b.logger.Info("connecting to Slack")
 		case socketmode.EventTypeConnected:
-			b.logger.Println("connected to Slack")
+			b.logger.Info("connected to Slack")
 		case socketmode.EventTypeConnectionError, socketmode.EventTypeInvalidAuth, socketmode.EventTypeIncomingError, socketmode.EventTypeErrorBadMessage:
-			b.logger.Printf("socket mode %s: %v", evt.Type, evt.Data)
+			b.logger.Warn("socket mode error", "type", evt.Type, "error", fmt.Sprint(evt.Data))
 
 		case socketmode.EventTypeEventsAPI:
 			b.ack(client, evt.Request, nil)
 			go func(req *socketmode.Request) {
 				if err := b.HandleEvent(ctx, req.Payload); err != nil {
-					b.logger.Printf("handle event: %v", err)
+					b.logger.Error("failed to handle an event", "error", err)
 				}
 			}(evt.Request)
 
@@ -65,7 +66,7 @@ func (b *Bot) Listen(ctx context.Context, client *socketmode.Client) {
 			b.ack(client, evt.Request, nil)
 			go func() {
 				if _, err := b.HandleInteraction(ctx, cb); err != nil {
-					b.logger.Printf("handle interaction: %v", err)
+					b.logger.Error("failed to handle an interaction", "type", cb.Type, "error", err)
 				}
 			}()
 		}
@@ -78,7 +79,7 @@ func (b *Bot) handleThenAck(ctx context.Context, client *socketmode.Client, req 
 	defer cancel()
 	payload, err := handle(ctx)
 	if err != nil {
-		b.logger.Printf("handle %s: %v", kind, err)
+		b.logger.Error("failed to handle a request", "type", kind, "error", err)
 	}
 	b.ack(client, req, payload)
 }
@@ -94,6 +95,6 @@ func (b *Bot) ack(client *socketmode.Client, req *socketmode.Request, payload an
 		err = client.Ack(*req, payload)
 	}
 	if err != nil {
-		b.logger.Printf("acknowledge %s: %v", req.Type, err)
+		b.logger.Error("failed to acknowledge a request", "type", req.Type, "error", err)
 	}
 }

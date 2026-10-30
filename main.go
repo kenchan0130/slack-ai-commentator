@@ -3,7 +3,7 @@ package main
 import (
 	"context"
 	"fmt"
-	"log"
+	"log/slog"
 	"os"
 	"os/signal"
 	"sync"
@@ -20,8 +20,17 @@ import (
 
 func main() {
 	if err := run(); err != nil {
-		log.Fatal(err)
+		slog.Error("failed to run", "error", err)
+		os.Exit(1)
 	}
+}
+
+// newLogger returns the logger of the app, which writes text or JSON to stderr.
+func newLogger(format string) *slog.Logger {
+	if format == config.LogFormatJSON {
+		return slog.New(slog.NewJSONHandler(os.Stderr, nil))
+	}
+	return slog.New(slog.NewTextHandler(os.Stderr, nil))
 }
 
 func run() error {
@@ -32,6 +41,9 @@ func run() error {
 	if err != nil {
 		return fmt.Errorf("load the configuration: %w", err)
 	}
+	logger := newLogger(cfg.LogFormat)
+	// The errors that stop the app are written in the same format.
+	slog.SetDefault(logger)
 
 	store, err := rule.Open(ctx, cfg.Store)
 	if err != nil {
@@ -44,13 +56,12 @@ func run() error {
 		return fmt.Errorf("UI_LANGUAGE: %w", err)
 	}
 
-	logger := log.New(os.Stderr, "", log.LstdFlags)
 	api := slack.New(cfg.SlackBotToken, slack.OptionAppLevelToken(cfg.SlackAppToken), slack.OptionDebug(cfg.Debug))
 	auth, err := api.AuthTestContext(ctx)
 	if err != nil {
 		return fmt.Errorf("slack.Client#AuthTestContext(): %w", err)
 	}
-	logger.Printf("running as %s (user %s, bot %s)", auth.User, auth.UserID, auth.BotID)
+	logger.Info("running", "name", auth.User, "user", auth.UserID, "bot", auth.BotID)
 
 	llmOpts := llm.Options{
 		BaseURL:   cfg.LLMURL,
@@ -67,7 +78,7 @@ func run() error {
 			return fmt.Errorf("llm.NewBedrock(): %w", err)
 		}
 	}
-	logger.Printf("using %s (model %q)", cfg.LLMProvider, cfg.LLMModel)
+	logger.Info("using an LLM", "provider", cfg.LLMProvider, "model", cfg.LLMModel)
 
 	b := bot.New(api,
 		completer,

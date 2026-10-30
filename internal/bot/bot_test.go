@@ -4,8 +4,7 @@ import (
 	"context"
 	"errors"
 	"fmt"
-	"io"
-	"log"
+	"log/slog"
 	"net/url"
 	"path/filepath"
 	"regexp"
@@ -120,7 +119,7 @@ func newTestBot(t *testing.T, rules ...rule.Rule) (*Bot, *fakeSlack, *fakeLLM) {
 	}
 	api := &fakeSlack{messages: map[string]slack.Message{}}
 	l := &fakeLLM{out: "evaluation"}
-	b := New(api, l, store, Identity{UserID: "USELF", BotID: "BSELF"}, Options{QueueSize: 10, MaxInputChars: 100, Localizer: localizer(t, "en")}, log.New(io.Discard, "", 0))
+	b := New(api, l, store, Identity{UserID: "USELF", BotID: "BSELF"}, Options{QueueSize: 10, MaxInputChars: 100, Localizer: localizer(t, "en")}, slog.New(slog.DiscardHandler))
 	return b, api, l
 }
 
@@ -432,7 +431,7 @@ func TestPostDoesNotWaitAfterTheLastAttempt(t *testing.T) {
 	b.api = limited
 	done := make(chan struct{})
 	go func() {
-		b.post(context.Background(), "C1", "1.0", "text")
+		_ = b.post(context.Background(), "C1", "1.0", "text", nil)
 		close(done)
 	}()
 	select {
@@ -445,6 +444,14 @@ func TestPostDoesNotWaitAfterTheLastAttempt(t *testing.T) {
 	}
 }
 
+// promptValue is the state of the rich text prompt input with a plain text.
+func promptValue(prompt string) slack.BlockAction {
+	if prompt == "" {
+		return slack.BlockAction{}
+	}
+	return slack.BlockAction{RichTextValue: *richTextFromText(prompt)}
+}
+
 func modalView(meta, trigger, emoji, authors, prompt string) slack.View {
 	return slack.View{
 		PrivateMetadata: meta,
@@ -452,7 +459,7 @@ func modalView(meta, trigger, emoji, authors, prompt string) slack.View {
 			blockTrigger: {actionInput: {SelectedOption: slack.OptionBlockObject{Value: trigger}}},
 			blockEmoji:   {actionInput: {SelectedOption: slack.OptionBlockObject{Value: emoji}}},
 			blockAuthors: {actionInput: {Value: authors}},
-			blockPrompt:  {actionInput: {Value: prompt}},
+			blockPrompt:  {actionInput: promptValue(prompt)},
 		}},
 	}
 }
@@ -506,7 +513,7 @@ func TestModalKeepsEmojiWhileHidden(t *testing.T) {
 	back := hidden
 	back.State = &slack.ViewState{Values: map[string]map[string]slack.BlockAction{
 		blockTrigger: {actionInput: {SelectedOption: slack.OptionBlockObject{Value: "reaction"}}},
-		blockPrompt:  {actionInput: {Value: "p"}},
+		blockPrompt:  {actionInput: promptValue("p")},
 	}}
 	change(back)
 	shown := api.views[len(api.views)-1]
@@ -608,8 +615,10 @@ func TestModalShowsEmojiOnlyForReactions(t *testing.T) {
 	}
 	for _, blk := range updated.Blocks.BlockSet {
 		if in, ok := blk.(*slack.InputBlock); ok && in.BlockID == blockPrompt {
-			if v := in.Element.(*slack.PlainTextInputBlockElement).InitialValue; v != "keep this" {
-				t.Errorf("prompt = %q, want the entered prompt kept", v)
+			if v := in.Element.(*slack.RichTextInputBlockElement).InitialValue; v == nil {
+				t.Error("prompt = nil, want the entered prompt kept")
+			} else if got, _ := promptFromRichText(*v); got != "keep this" {
+				t.Errorf("prompt = %q, want the entered prompt kept", got)
 			}
 		}
 	}

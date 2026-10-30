@@ -27,7 +27,7 @@ ModalEmojiPlaceholder = "Choose an emoji"
 ModalAuthors = "Posts by"
 ModalAuthorsHint = "Comma-separated user IDs, bot IDs or app names. Leave empty for everyone."
 ModalPrompt = "Prompt"
-ModalPromptHint = "The post is given to AI after this prompt."
+ModalPromptHint = "The post is given to AI after this prompt. A reply can mention the users and user groups you mention here with @."
 ModalPromptPlaceholder = "Evaluate how this post relates to our company and reply with ..."
 
 Help = """

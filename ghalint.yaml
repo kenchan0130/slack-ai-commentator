@@ -1,8 +1,5 @@
 excludes:
-# tagpr and release-image require this credential
-- policy_name: checkout_persist_credentials_should_be_false
-  workflow_file_path: .github/workflows/release.yml
-  job_name: release-image
+# tagpr requires this credential
 - policy_name: checkout_persist_credentials_should_be_false
   workflow_file_path: .github/workflows/release.yml
   job_name: tagpr

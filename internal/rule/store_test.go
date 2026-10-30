@@ -114,11 +114,16 @@ func TestMatches(t *testing.T) {
 	if !(Rule{}).MatchesAuthor("", "") {
 		t.Error("a rule without authors should match everyone")
 	}
-	if !r.MatchesReaction("+1") || !r.MatchesReaction("+1::skin-tone-2") || r.MatchesReaction("-1") {
+	equal := func(a, b string) bool { return a == b }
+	if !r.MatchesReaction("+1", equal) || !r.MatchesReaction("+1::skin-tone-2", equal) || r.MatchesReaction("-1", equal) {
 		t.Error("MatchesReaction")
 	}
-	if (Rule{Trigger: TriggerMessage, Emoji: "+1"}).MatchesReaction("+1") {
+	if (Rule{Trigger: TriggerMessage, Emoji: "+1"}).MatchesReaction("+1", equal) {
 		t.Error("only reaction rules match reactions")
+	}
+	alias := func(a, b string) bool { return a == b || (a == "thumbsup" && b == "+1") }
+	if !r.MatchesReaction("thumbsup::skin-tone-3", alias) {
+		t.Error("MatchesReaction should compare the names with same")
 	}
 }
 

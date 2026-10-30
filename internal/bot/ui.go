@@ -60,8 +60,25 @@ func shorten(s string, n int) string {
 	return string(r[:n]) + "…"
 }
 
+// maxShownRichPromptChars is the longest prompt shown as the rich text it was written in. A longer one is cut.
+const maxShownRichPromptChars = 1000
+
+// promptRichText returns the rich text of a prompt, or nil when the rule has none.
+func promptRichText(r rule.Rule) *slack.RichTextBlock {
+	if len(r.PromptRichText) == 0 {
+		return nil
+	}
+	var rt slack.RichTextBlock
+	if err := json.Unmarshal(r.PromptRichText, &rt); err != nil || len(rt.Elements) == 0 {
+		return nil
+	}
+	return &rt
+}
+
 // describe shows a rule: its trigger and authors, and its prompt.
-// The prompt is preformatted rich text, which Slack shows as it is, so it is never read as mrkdwn nor mentions anyone.
+// The prompt is shown as the rich text it was written in, with its mentions; describe is only used in messages that
+// only one user sees, which notify nobody. A long prompt, or one without rich text, is cut and shown as preformatted
+// text, which Slack shows as it is, so it is never read as mrkdwn nor mentions anyone.
 func (b *Bot) describe(r rule.Rule) []slack.Block {
 	trigger := b.t.T(triggerMessages[r.Trigger])
 	if r.Trigger == rule.TriggerReaction {
@@ -73,6 +90,9 @@ func (b *Bot) describe(r rule.Rule) []slack.Block {
 	}
 	// Users write the authors, so they are escaped not to mention anyone.
 	summary := b.t.T("RuleSummary", map[string]any{"Trigger": trigger, "Authors": slackutilsx.EscapeMessage(authors)})
+	if rt := promptRichText(r); rt != nil && len([]rune(r.Prompt)) <= maxShownRichPromptChars {
+		return []slack.Block{slack.NewSectionBlock(mrkdwn(summary), nil, nil), rt}
+	}
 	prompt := &slack.RichTextPreformatted{
 		Type:     slack.RTEPreformatted,
 		Elements: []slack.RichTextSectionElement{slack.NewRichTextSectionTextElement(shorten(r.Prompt, 200), nil)},
@@ -156,9 +176,13 @@ func (b *Bot) ruleModal(channelID string, r *rule.Rule) slack.ModalViewRequest {
 
 	authors := slack.NewPlainTextInputBlockElement(plain("U0123ABCD, B0123ABCD, RSS"), actionInput)
 	authors.InitialValue = strings.Join(r.Authors, ", ")
-	prompt := slack.NewPlainTextInputBlockElement(plain(b.t.T("ModalPromptPlaceholder")), actionInput)
-	prompt.Multiline = true
-	prompt.InitialValue = r.Prompt
+	// Rich text lets the user mention users and user groups with @, which a reply of the rule can then mention.
+	prompt := slack.NewRichTextInputBlockElement(plain(b.t.T("ModalPromptPlaceholder")), actionInput)
+	if rt := promptRichText(*r); rt != nil {
+		prompt.InitialValue = rt
+	} else if r.Prompt != "" {
+		prompt.InitialValue = richTextFromText(r.Prompt)
+	}
 
 	authorsBlock := slack.NewInputBlock(blockAuthors, plain(b.t.T("ModalAuthors")), plain(b.t.T("ModalAuthorsHint")), authors)
 	authorsBlock.Optional = true
@@ -215,10 +239,19 @@ func ruleFromView(view slack.View) (rule.Rule, error) {
 		ChannelID: meta.ChannelID,
 		Trigger:   rule.Trigger(value(blockTrigger).SelectedOption.Value),
 		Emoji:     value(blockEmoji).SelectedOption.Value,
-		Prompt:    strings.TrimSpace(value(blockPrompt).Value),
 	}
 	if r.Emoji == "" {
 		r.Emoji = meta.Emoji
+	}
+	if rt := value(blockPrompt).RichTextValue; len(rt.Elements) > 0 {
+		r.Prompt, r.Mentions = promptFromRichText(rt)
+		if r.Prompt != "" {
+			b, err := json.Marshal(rt)
+			if err != nil {
+				return rule.Rule{}, fmt.Errorf("json.Marshal() prompt: %w", err)
+			}
+			r.PromptRichText = b
+		}
 	}
 	// Only commas and newlines separate the authors, because an app name may have spaces, such as "Google Calendar".
 	for _, a := range strings.FieldsFunc(value(blockAuthors).Value, func(c rune) bool { return c == ',' || c == '\n' }) {
@@ -333,13 +366,14 @@ func (b *Bot) HandleInteraction(ctx context.Context, cb slack.InteractionCallbac
 			return slack.NewErrorsViewSubmissionResponse(map[string]string{blockPrompt: b.t.T("ErrorSaveRule")}),
 				fmt.Errorf("rule.Store#Put(): %w", err)
 		}
+		b.logger.Info("saved a rule", "rule", r.ID, "trigger", r.Trigger, "channel", r.ChannelID, "user", cb.User.ID)
 		// The modal waits for the acknowledgement, so the confirmation is posted after it,
 		// without the deadline of the acknowledgement.
 		ctx := context.WithoutCancel(ctx)
 		go func() {
 			blocks := append([]slack.Block{slack.NewSectionBlock(mrkdwn(b.t.T("Saved")), nil, nil)}, b.describe(r)...)
 			if _, err := b.api.PostEphemeralContext(ctx, r.ChannelID, cb.User.ID, slack.MsgOptionText(b.t.T("Saved"), false), slack.MsgOptionBlocks(blocks...)); err != nil {
-				b.logger.Printf("slack.Client#PostEphemeralContext(): %v", err)
+				b.logger.Error("failed to confirm the saved rule", "rule", r.ID, "error", err)
 			}
 		}()
 	}
@@ -395,6 +429,7 @@ func (b *Bot) handleBlockActions(ctx context.Context, cb slack.InteractionCallba
 				errs = append(errs, fmt.Errorf("rule.Store#Delete(): %w", err))
 				continue
 			}
+			b.logger.Info("deleted a rule", "rule", r.ID, "trigger", r.Trigger, "channel", r.ChannelID, "user", cb.User.ID)
 			if cb.ResponseURL == "" {
 				continue
 			}

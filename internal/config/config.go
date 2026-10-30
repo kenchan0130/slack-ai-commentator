@@ -19,6 +19,8 @@ type Config struct {
 	SlackBotToken string `env:"SLACK_BOT_TOKEN,required,notEmpty"`
 	SlackAppToken string `env:"SLACK_APP_TOKEN,required,notEmpty"`
 	Debug         bool   `env:"DEBUG"`
+	// LogFormat is "text" for people to read or "json" for log collectors.
+	LogFormat string `env:"LOG_FORMAT" envDefault:"text"`
 	// UILanguage is the language of the messages in Slack. LANGUAGE is not used, because gettext uses it for a list such as "ja:en".
 	UILanguage string `env:"UI_LANGUAGE,required,notEmpty"`
 
@@ -52,6 +54,12 @@ const (
 	ProviderBedrock = "bedrock"
 )
 
+// Log formats.
+const (
+	LogFormatText = "text"
+	LogFormatJSON = "json"
+)
+
 // ParameterGetter resolves a parameter, such as a value in AWS Systems Manager Parameter Store.
 type ParameterGetter func(ctx context.Context, name string) (string, error)
 
@@ -64,6 +72,9 @@ func Load(ctx context.Context, environ map[string]string, getParameter Parameter
 	}
 	if c.LLMConcurrency < 1 || c.QueueSize < 1 {
 		return nil, errors.New("LLM_CONCURRENCY and QUEUE_SIZE must be at least 1")
+	}
+	if c.LogFormat != LogFormatText && c.LogFormat != LogFormatJSON {
+		return nil, fmt.Errorf("LOG_FORMAT must be %q or %q: %q", LogFormatText, LogFormatJSON, c.LogFormat)
 	}
 	switch c.LLMProvider {
 	case ProviderOpenAI:

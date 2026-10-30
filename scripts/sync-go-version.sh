@@ -3,11 +3,24 @@ set -eu
 
 mode=${1:?use --check or --write}
 root=${2:-.}
-docker_go=$(sed -nE 's/^FROM([[:space:]]+--platform=[^[:space:]]+)?[[:space:]]+golang:([0-9]+\.[0-9]+)(\.[0-9]+)?[[:space:]].*$/\2/p' "$root/Dockerfile" | head -n 1)
-module_go=$(sed -nE 's/^go ([0-9]+\.[0-9]+)(\.[0-9]+)?$/\1/p' "$root/go.mod")
+docker_version=$(sed -nE 's/^FROM([[:space:]]+--platform=[^[:space:]]+)?[[:space:]]+golang:([0-9]+\.[0-9]+(\.[0-9]+)?)[[:space:]].*$/\2/p' "$root/Dockerfile" | head -n 1)
+module_version=$(sed -nE 's/^go ([0-9]+\.[0-9]+(\.[0-9]+)?)$/\1/p' "$root/go.mod")
 
-if [ -z "$docker_go" ] || [ -z "$module_go" ]; then
+if [ -z "$docker_version" ] || [ -z "$module_version" ]; then
   echo 'Could not find Go versions in Dockerfile and go.mod' >&2
+  exit 1
+fi
+docker_go=$(printf '%s\n' "$docker_version" | cut -d. -f1,2)
+module_go=$(printf '%s\n' "$module_version" | cut -d. -f1,2)
+
+if ! awk -v docker="$docker_version" -v module="$module_version" 'BEGIN {
+  split(docker, d, "."); split(module, m, ".")
+  for (i = 1; i <= 3; i++) {
+    if ((d[i] + 0) > (m[i] + 0)) exit 0
+    if ((d[i] + 0) < (m[i] + 0)) exit 1
+  }
+}'; then
+  echo 'Docker builder is older than go.mod; refusing to lower the required Go version' >&2
   exit 1
 fi
 [ "$docker_go" = "$module_go" ] && exit 0
@@ -17,17 +30,6 @@ if [ "$mode" = --check ]; then
   exit 1
 fi
 [ "$mode" = --write ] || exit 2
-
-docker_major=${docker_go%%.*}
-docker_minor=${docker_go#*.}
-module_major=${module_go%%.*}
-module_minor=${module_go#*.}
-if [ "$docker_major" -lt "$module_major" ] || {
-  [ "$docker_major" -eq "$module_major" ] && [ "$docker_minor" -lt "$module_minor" ];
-}; then
-  echo 'Docker builder is older than go.mod; refusing to lower the required Go version' >&2
-  exit 1
-fi
 
 temp_file=$(mktemp)
 trap 'rm -f "$temp_file"' EXIT HUP INT TERM

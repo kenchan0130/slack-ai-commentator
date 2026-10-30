@@ -25,6 +25,23 @@ var standardEmojiNames = sync.OnceValue(func() []string {
 	return names
 })
 
+// emojiCharacter returns the characters of a standard emoji name, or "" for a custom emoji.
+// The variation selector is removed, because the aliases of an emoji may differ only in it.
+func emojiCharacter(name string) string {
+	return strings.ReplaceAll(emoji.CodeMap()[":"+name+":"], "️", "")
+}
+
+// sameEmoji reports whether two names are the same emoji. A standard emoji has aliases, such as "+1", "thumbsup"
+// and "thumbs_up", and the name the rule stores may not be the one Slack sends with a reaction, so standard emoji
+// are compared by their characters. Custom emoji are compared by their names.
+func sameEmoji(a, b string) bool {
+	if a == b {
+		return true
+	}
+	ca := emojiCharacter(a)
+	return ca != "" && ca == emojiCharacter(b)
+}
+
 // customEmojiNames returns the custom emoji of the workspace. They are cached, because the list can be long.
 func (b *Bot) customEmojiNames(ctx context.Context) []string {
 	if item := b.emojiCache.Get("custom"); item != nil {
@@ -32,7 +49,7 @@ func (b *Bot) customEmojiNames(ctx context.Context) []string {
 	}
 	m, err := b.api.GetEmojiContext(ctx)
 	if err != nil {
-		b.logger.Printf("slack.Client#GetEmojiContext(): %v", err)
+		b.logger.Error("failed to list the custom emoji", "error", err)
 		return nil
 	}
 	names := slices.Sorted(maps.Keys(m))

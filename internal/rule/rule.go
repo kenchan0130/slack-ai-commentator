@@ -2,6 +2,7 @@ package rule
 
 import (
 	"context"
+	"encoding/json"
 	"errors"
 	"fmt"
 	"slices"
@@ -38,8 +39,13 @@ type Rule struct {
 	// Emoji is the reaction name without colons, used by TriggerReaction.
 	Emoji string `json:"emoji,omitempty"`
 	// Authors are user IDs, bot IDs or app names whose posts the rule replies to. Empty matches everyone.
-	Authors   []string  `json:"authors,omitempty"`
-	Prompt    string    `json:"prompt"`
+	Authors []string `json:"authors,omitempty"`
+	// Prompt is given to the LLM. Mentions in it are written as "<@U0123>" or "<!subteam^S0123>".
+	Prompt string `json:"prompt"`
+	// PromptRichText is the prompt as the user wrote it in Slack, to show it and edit it again.
+	PromptRichText json.RawMessage `json:"prompt_rich_text,omitempty"`
+	// Mentions are the mentions in the prompt. A reply can mention only these.
+	Mentions  []string  `json:"mentions,omitempty"`
 	UpdatedBy string    `json:"updated_by,omitempty"`
 	UpdatedAt time.Time `json:"updated_at"`
 }
@@ -61,9 +67,10 @@ func (r Rule) MatchesAuthor(ids ...string) bool {
 }
 
 // MatchesReaction reports whether a reaction name, such as "+1::skin-tone-2", is the rule's emoji.
-func (r Rule) MatchesReaction(name string) bool {
+// same compares two emoji names, so the aliases of a standard emoji, such as "+1" and "thumbsup", can match.
+func (r Rule) MatchesReaction(name string, same func(a, b string) bool) bool {
 	base, _, _ := strings.Cut(name, "::")
-	return r.Trigger == TriggerReaction && r.Emoji != "" && base == r.Emoji
+	return r.Trigger == TriggerReaction && r.Emoji != "" && same(base, r.Emoji)
 }
 
 // Validate checks the fields a user fills in.
