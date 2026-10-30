@@ -1,0 +1,52 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="1024" height="1024" viewBox="0 0 1024 1024">
+  <defs>
+    <linearGradient id="bg" x1="0" y1="0" x2="1" y2="1">
+      <stop offset="0" stop-color="#5B5BF0"/>
+      <stop offset="1" stop-color="#A23BEA"/>
+    </linearGradient>
+    <linearGradient id="head" x1="0" y1="0" x2="1" y2="1">
+      <stop offset="0" stop-color="#2E2A7A"/>
+      <stop offset="1" stop-color="#4B2A86"/>
+    </linearGradient>
+  </defs>
+
+  <!-- background -->
+  <rect width="1024" height="1024" fill="url(#bg)"/>
+
+  <!-- antennas of the AI -->
+  <g stroke="#FFFFFF" stroke-width="30" stroke-linecap="round">
+    <line x1="430" y1="290" x2="340" y2="150"/>
+    <line x1="594" y1="290" x2="684" y2="150"/>
+  </g>
+  <circle cx="340" cy="150" r="36" fill="#FFFFFF"/>
+  <circle cx="684" cy="150" r="36" fill="#FFFFFF"/>
+
+  <!-- AI head -->
+  <rect x="160" y="270" width="704" height="520" rx="150" fill="url(#head)"/>
+
+  <!-- face -->
+  <rect x="316" y="420" width="96" height="160" rx="48" fill="#7CF2E0"/>
+  <rect x="612" y="420" width="96" height="160" rx="48" fill="#7CF2E0"/>
+  <path d="M 410 652 Q 512 720 614 652" fill="none" stroke="#7CF2E0" stroke-width="32" stroke-linecap="round"/>
+
+  <!-- AI sparkle -->
+  <path fill="#FFFFFF" d="
+    M 760 300
+    C 770 348 782 360 830 370
+    C 782 380 770 392 760 440
+    C 750 392 738 380 690 370
+    C 738 360 750 348 760 300
+    Z"/>
+
+  <!-- commentator's microphone in front -->
+  <g transform="translate(790 730) rotate(-20)">
+    <rect x="-36" y="60" width="72" height="190" rx="36" fill="#1F1B4D"/>
+    <rect x="-86" y="-130" width="172" height="220" rx="86" fill="#1F1B4D"/>
+    <rect x="-68" y="-112" width="136" height="184" rx="68" fill="#D9D6FF"/>
+    <g stroke="#1F1B4D" stroke-width="13" stroke-linecap="round">
+      <line x1="-46" y1="-58" x2="46" y2="-58"/>
+      <line x1="-52" y1="-20" x2="52" y2="-20"/>
+      <line x1="-46" y1="18" x2="46" y2="18"/>
+    </g>
+  </g>
+</svg>

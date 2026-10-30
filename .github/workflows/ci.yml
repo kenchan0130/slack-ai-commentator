@@ -1,0 +1,110 @@
+name: CI
+on:
+  pull_request:
+  workflow_dispatch:
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.event.pull_request.number || github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  go-version:
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    permissions:
+      contents: read
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+      - name: Check Docker and module Go versions
+        run: sh scripts/sync-go-version.sh --check
+
+  test:
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    permissions:
+      contents: read
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+      - uses: actions/setup-go@b7ad1dad31e06c5925ef5d2fc7ad053ef454303e # v7.0.0
+        with:
+          go-version-file: ./go.mod
+          cache: true
+      - name: Get dependencies
+        run: |
+          make install
+      - name: Run test
+        run: |
+          make test
+      - name: Check for build ability
+        run: |
+          go build -v .
+
+  lint:
+    name: lint
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    permissions:
+      contents: read
+    env:
+      GOTOOLCHAIN: local
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+      - uses: actions/setup-go@b7ad1dad31e06c5925ef5d2fc7ad053ef454303e # v7.0.0
+        with:
+          go-version-file: ./go.mod
+          cache: true
+      - name: Get dependencies
+        run: |
+          make tools
+      - name: Run lint
+        run: |
+          make lint
+
+  docker:
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    permissions:
+      contents: read
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+      - name: Set up QEMU
+        uses: docker/setup-qemu-action@99012661954931238ded8c8b007157a8430204e1 # v4.4.0
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@f87e5991a6d7451dcb8d9637bfbc97413f497069 # v4.4.1
+      - name: Build images for all release platforms
+        uses: docker/build-push-action@c3c9e263c25d99ce0380d002d59b67737d91b0dc # v7.4.0
+        with:
+          context: .
+          platforms: linux/amd64,linux/arm64
+          push: false
+      - name: Build image for the runner
+        uses: docker/build-push-action@c3c9e263c25d99ce0380d002d59b67737d91b0dc # v7.4.0
+        with:
+          context: .
+          load: true
+          tags: slack-ai-commentator:ci
+      - name: Check the app runs as non-root and can write its data directory
+        run: |
+          uid=$(docker run --rm --entrypoint id slack-ai-commentator:ci -u)
+          if [ "$uid" = 0 ]; then
+            echo 'The container runs as root' >&2
+            exit 1
+          fi
+          docker volume create data
+          docker run --rm -v data:/opt/data --entrypoint touch slack-ai-commentator:ci /opt/data/rules.json
+      - name: Check the app reports missing configuration
+        run: |
+          if docker run --rm slack-ai-commentator:ci > out.txt 2>&1; then
+            echo 'The app started without configuration' >&2
+            exit 1
+          fi
+          cat out.txt
+          grep -q SLACK_BOT_TOKEN out.txt
