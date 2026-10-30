@@ -13,7 +13,7 @@ Invite the app to a channel and add rules there. A rule decides which posts the 
 - When someone reacts with `:mag:`, summarize the post and list the points to check.
 - When someone mentions the app in a thread, review the thread's first post.
 
-The app only replies in threads, and escapes the replies so they never mention anyone. It can not do anything else.
+The app only replies in threads. It allows mentions of users and groups explicitly selected in a rule's prompt and escapes other mentions. The LLM decides whether to include an allowed mention, so a notification is not guaranteed.
 A post may still contain instructions that the LLM follows, so treat a reply as untrusted text, and do not write secrets in a prompt: anyone in the channel can see the rules.
 
 ## How it works
@@ -48,6 +48,8 @@ When the app is invited to a channel without rules, it shows the inviter a butto
 | Posts by | Comma-separated user IDs (`U…`), bot IDs (`B…`) or app names (e.g. `RSS`). Empty for everyone. |
 | Prompt | The instructions for the LLM. The post is given after it. |
 
+To allow a mention in a reply, select the user or group from Slack's suggestions in the prompt editor. The LLM must include the mention in its reply for a notification to be sent.
+
 Anyone who can run the slash command in a channel can change its rules.
 
 ## Setup
@@ -79,6 +81,8 @@ Add the settings of the LLM you use.
 #### A local LLM (tensai, Ollama, llama.cpp, ...)
 
 Run an OpenAI-compatible server next to the app and point `LLM_URL` at it. No API key is needed, and posts never leave your network.
+For a local testing configuration that builds the app and runs tensai, see [compose.example.yaml](compose.example.yaml). Create a `.env` file with `SLACK_BOT_TOKEN` and `SLACK_APP_TOKEN`, then run `docker compose -f compose.example.yaml up --build -d`. This is an example; adjust the model and resource limits for your environment.
+
 An example with [tensai](https://github.com/mattn/tensai), which downloads its model (about 2GB) on the first start and uses about 2.5GB of memory:
 
 ```yaml

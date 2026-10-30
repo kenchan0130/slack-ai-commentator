@@ -362,6 +362,11 @@ const mentionNote = "\nTo mention someone, write the mention exactly as it is in
 const maxMarkdownChars = 12000
 
 func systemPrompt(r rule.Rule) string {
+	if rt := promptRichText(r); rt != nil {
+		if prompt, _ := promptFromRichText(*rt); prompt != "" {
+			r.Prompt = prompt
+		}
+	}
 	if len(r.Mentions) > 0 {
 		return r.Prompt + formatNote + mentionNote
 	}
@@ -430,11 +435,26 @@ func (b *Bot) reply(ctx context.Context, j job) error {
 // The text is escaped by slack-go, so a reply can only mention the allowed users and user groups.
 func (b *Bot) post(ctx context.Context, channel, threadTS, text string, allowedMentions []string) error {
 	text = shorten(escapeReply(text, allowedMentions), maxMarkdownChars-1)
+	markdown := text
+	mentions := make([]string, 0, len(allowedMentions))
+	for _, mention := range allowedMentions {
+		if mention != "" && strings.Contains(markdown, mention) {
+			mentions = append(mentions, mention)
+			markdown = strings.ReplaceAll(markdown, mention, "")
+		}
+	}
+	blocks := make([]slack.Block, 0, 2)
+	if len(mentions) > 0 {
+		blocks = append(blocks, slack.NewSectionBlock(mrkdwn(strings.Join(mentions, " ")), nil, nil))
+	}
+	if strings.TrimSpace(markdown) != "" {
+		blocks = append(blocks, slack.NewMarkdownBlock("", markdown))
+	}
 	const attempts = 3
 	for attempt := 1; ; attempt++ {
 		_, _, err := b.api.PostMessageContext(ctx, channel,
 			slack.MsgOptionText(text, false),
-			slack.MsgOptionBlocks(slack.NewMarkdownBlock("", text)),
+			slack.MsgOptionBlocks(blocks...),
 			slack.MsgOptionTS(threadTS),
 			slack.MsgOptionDisableLinkUnfurl(),
 		)

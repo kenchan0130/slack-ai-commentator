@@ -25,7 +25,11 @@ func promptFromRichText(rt slack.RichTextBlock) (string, []string) {
 		for _, e := range elements {
 			switch e := e.(type) {
 			case *slack.RichTextSectionTextElement:
-				b.WriteString(e.Text)
+				if e.Style != nil && e.Style.Bold && e.Text != "" {
+					b.WriteString("**" + e.Text + "**")
+				} else {
+					b.WriteString(e.Text)
+				}
 			case *slack.RichTextSectionUserElement:
 				mention("<@" + e.UserID + ">")
 			case *slack.RichTextSectionUserGroupElement:

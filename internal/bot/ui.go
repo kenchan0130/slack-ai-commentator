@@ -88,17 +88,18 @@ func (b *Bot) describe(r rule.Rule) []slack.Block {
 	if len(r.Authors) > 0 {
 		authors = shorten(strings.Join(r.Authors, ", "), 200)
 	}
-	// Users write the authors, so they are escaped not to mention anyone.
-	summary := b.t.T("RuleSummary", map[string]any{"Trigger": trigger, "Authors": slackutilsx.EscapeMessage(authors)})
+	// Plain text keeps user-supplied author names from creating mentions.
+	summary := b.t.T("RuleSummary", map[string]any{"Trigger": trigger, "Authors": authors})
+	summaryBlock := slack.NewSectionBlock(slack.NewTextBlockObject(slack.PlainTextType, summary, true, false), nil, nil)
 	if rt := promptRichText(r); rt != nil && len([]rune(r.Prompt)) <= maxShownRichPromptChars {
-		return []slack.Block{slack.NewSectionBlock(mrkdwn(summary), nil, nil), rt}
+		return []slack.Block{summaryBlock, rt}
 	}
 	prompt := &slack.RichTextPreformatted{
 		Type:     slack.RTEPreformatted,
 		Elements: []slack.RichTextSectionElement{slack.NewRichTextSectionTextElement(shorten(r.Prompt, 200), nil)},
 	}
 	return []slack.Block{
-		slack.NewSectionBlock(mrkdwn(summary), nil, nil),
+		summaryBlock,
 		slack.NewRichTextBlock("", prompt),
 	}
 }

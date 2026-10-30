@@ -69,6 +69,41 @@ func TestPostLimitsEscapedMarkdown(t *testing.T) {
 	}
 }
 
+func TestPostUsesSectionForAllowedMentions(t *testing.T) {
+	requests := make(chan string, 1)
+	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		requests <- r.FormValue("blocks")
+		w.Header().Set("Content-Type", "application/json")
+		_, _ = w.Write([]byte(`{"ok":true,"channel":"C1","ts":"1.0"}`))
+	}))
+	defer server.Close()
+	b, api, _ := newTestBot(t)
+	b.api = &postingSlack{fakeSlack: api, client: slack.New("token", slack.OptionAPIURL(server.URL+"/"))}
+	if err := b.post(context.Background(), "C1", "1.0", "<!subteam^S0PR> please check <@UOTHER>", []string{"<!subteam^S0PR>"}); err != nil {
+		t.Fatal(err)
+	}
+	var blocks []json.RawMessage
+	if err := json.Unmarshal([]byte(<-requests), &blocks); err != nil || len(blocks) != 2 {
+		t.Fatalf("blocks = %v, error = %v", blocks, err)
+	}
+	var section struct {
+		Type string `json:"type"`
+		Text struct {
+			Type string `json:"type"`
+			Text string `json:"text"`
+		} `json:"text"`
+	}
+	if err := json.Unmarshal(blocks[0], &section); err != nil {
+		t.Fatal(err)
+	}
+	if section.Type != "section" || section.Text.Type != "mrkdwn" || section.Text.Text != "<!subteam^S0PR>" {
+		t.Errorf("mention block = %s", blocks[0])
+	}
+	if strings.Contains(string(blocks[1]), "<!subteam^S0PR>") || strings.Contains(string(blocks[1]), "<@UOTHER>") {
+		t.Errorf("markdown block contains unescaped mentions: %s", blocks[1])
+	}
+}
+
 type fakeSlack struct {
 	mu       sync.Mutex
 	messages map[string]slack.Message // by ts
@@ -587,8 +622,9 @@ func TestDescribe(t *testing.T) {
 	b, _, _ := newTestBot(t)
 	prompt := "<!channel> & go\n```\ncode\n```"
 	summary, pre := describeText(t, b.describe(rule.Rule{Trigger: rule.TriggerMention, Authors: []string{"<!here>"}, Prompt: prompt}))
-	if strings.Contains(summary, "<!") {
-		t.Errorf("summary = %q, want the authors escaped", summary)
+	section := b.describe(rule.Rule{Trigger: rule.TriggerMention, Authors: []string{"<!here>"}, Prompt: prompt})[0].(*slack.SectionBlock)
+	if section.Text.Type != slack.PlainTextType || !strings.Contains(summary, "<!here>") {
+		t.Errorf("summary = %#v, want author displayed as plain text", section.Text)
 	}
 	// The prompt is preformatted rich text, which Slack shows as it is, so it is kept unchanged.
 	if pre != prompt {
@@ -606,7 +642,7 @@ func TestJapanese(t *testing.T) {
 	b, api, l := newTestBot(t, rule.Rule{ID: "r1", ChannelID: "C1", Trigger: rule.TriggerReaction, Emoji: "mag", Prompt: "p"})
 	b.t = localizer(t, "ja")
 
-	if got, _ := describeText(t, b.describe(rule.Rule{Trigger: rule.TriggerReaction, Emoji: "mag", Prompt: "p"})); got != "*投稿にリアクションが付いたとき :mag:*（対象: 全員）" {
+	if got, _ := describeText(t, b.describe(rule.Rule{Trigger: rule.TriggerReaction, Emoji: "mag", Prompt: "p"})); got != "返信のタイミング: 投稿にリアクションが付いたとき :mag:\n対象の投稿者: 全員" {
 		t.Errorf("describe() = %q", got)
 	}
 	if m := b.ruleModal("C1", nil); m.Title.Text != "ルールを追加" || m.Submit.Text != "保存" {

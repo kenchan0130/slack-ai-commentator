@@ -13,7 +13,7 @@ TriggerMessage = "Every new post in this channel"
 TriggerReaction = "When a post gets a reaction"
 
 Everyone = "everyone"
-RuleSummary = "*{{.Trigger}}* (posts by {{.Authors}})"
+RuleSummary = "Reply when: {{.Trigger}}\nPosts by: {{.Authors}}"
 ListHeader = "Rules in <#{{.Channel}}>: {{.Count}}"
 ListTruncated = " (showing the first {{.Count}})"
 Saved = "Saved the rule."

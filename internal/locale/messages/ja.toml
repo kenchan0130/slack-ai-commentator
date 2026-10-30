@@ -13,7 +13,7 @@ TriggerMessage = "このチャンネルのすべての新しい投稿"
 TriggerReaction = "投稿にリアクションが付いたとき"
 
 Everyone = "全員"
-RuleSummary = "*{{.Trigger}}*（対象: {{.Authors}}）"
+RuleSummary = "返信のタイミング: {{.Trigger}}\n対象の投稿者: {{.Authors}}"
 ListHeader = "<#{{.Channel}}> のルール: {{.Count}}件"
 ListTruncated = "（最初の{{.Count}}件を表示）"
 Saved = "ルールを保存しました。"

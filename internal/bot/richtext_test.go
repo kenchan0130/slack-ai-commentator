@@ -53,6 +53,14 @@ func TestPromptFromRichText(t *testing.T) {
 	}
 }
 
+func TestSystemPromptPreservesSavedBold(t *testing.T) {
+	const input = `{"type":"rich_text","elements":[{"type":"rich_text_section","elements":[{"type":"text","text":"関係性","style":{"bold":true}},{"type":"text","text":": 高"}]}]}`
+	r := rule.Rule{Prompt: "関係性: 高", PromptRichText: json.RawMessage(input)}
+	if got := systemPrompt(r); !strings.Contains(got, "**関係性**: 高") {
+		t.Errorf("systemPrompt() = %q, want bold preserved", got)
+	}
+}
+
 func TestEscapeReply(t *testing.T) {
 	out := escapeReply("Risk! <!subteam^S0PR> <@U0LEAD> <@U0OTHER> <!subteam^S0ALL> <!channel> & more", []string{"<!subteam^S0PR>", "<@U0LEAD>"})
 	want := "Risk! <!subteam^S0PR> <@U0LEAD> &lt;@U0OTHER&gt; &lt;!subteam^S0ALL&gt; &lt;!channel&gt; &amp; more"
