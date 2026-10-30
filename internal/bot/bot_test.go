@@ -34,7 +34,11 @@ type postingSlack struct {
 }
 
 func (s *postingSlack) PostMessageContext(ctx context.Context, channel string, options ...slack.MsgOption) (string, string, error) {
-	return s.client.PostMessageContext(ctx, channel, options...)
+	ch, ts, err := s.client.PostMessageContext(ctx, channel, options...)
+	if err != nil {
+		return ch, ts, fmt.Errorf("post message: %w", err)
+	}
+	return ch, ts, nil
 }
 
 func TestPostLimitsEscapedMarkdown(t *testing.T) {
