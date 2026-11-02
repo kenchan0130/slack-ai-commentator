@@ -439,8 +439,9 @@ func (b *Bot) post(ctx context.Context, channel, threadTS, text string, allowedM
 	mentions := make([]string, 0, len(allowedMentions))
 	for _, mention := range allowedMentions {
 		if mention != "" && strings.Contains(markdown, mention) {
-			mentions = append(mentions, mention)
-			markdown = strings.ReplaceAll(markdown, mention, "")
+			reference := mentionReference(mention)
+			mentions = append(mentions, mention+" ("+reference+")")
+			markdown = strings.ReplaceAll(markdown, mention, reference)
 		}
 	}
 	blocks := make([]slack.Block, 0, 2)

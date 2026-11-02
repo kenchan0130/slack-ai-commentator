@@ -103,5 +103,16 @@ func escapeReply(text string, allowed []string) string {
 	for _, m := range allowed {
 		escaped = strings.ReplaceAll(escaped, slackutilsx.EscapeMessage(m), m)
 	}
-	return escaped
+	return strings.ReplaceAll(escaped, "&gt;", ">")
+}
+
+// mentionReference identifies a Slack mention in Markdown without triggering a second notification.
+func mentionReference(mention string) string {
+	if id, ok := strings.CutPrefix(mention, "<@"); ok && strings.HasSuffix(id, ">") {
+		return "`@" + strings.TrimSuffix(id, ">") + "`"
+	}
+	if id, ok := strings.CutPrefix(mention, "<!subteam^"); ok && strings.HasSuffix(id, ">") {
+		return "`@" + strings.TrimSuffix(id, ">") + "`"
+	}
+	return mention
 }

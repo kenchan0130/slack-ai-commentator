@@ -63,9 +63,15 @@ func TestSystemPromptPreservesSavedBold(t *testing.T) {
 
 func TestEscapeReply(t *testing.T) {
 	out := escapeReply("Risk! <!subteam^S0PR> <@U0LEAD> <@U0OTHER> <!subteam^S0ALL> <!channel> & more", []string{"<!subteam^S0PR>", "<@U0LEAD>"})
-	want := "Risk! <!subteam^S0PR> <@U0LEAD> &lt;@U0OTHER&gt; &lt;!subteam^S0ALL&gt; &lt;!channel&gt; &amp; more"
+	want := "Risk! <!subteam^S0PR> <@U0LEAD> &lt;@U0OTHER> &lt;!subteam^S0ALL> &lt;!channel> &amp; more"
 	if out != want {
 		t.Errorf("escapeReply() =\n%s\nwant\n%s", out, want)
+	}
+}
+
+func TestEscapeReplyPreservesQuote(t *testing.T) {
+	if got := escapeReply("> Quote & <@UOTHER>", nil); got != "> Quote &amp; &lt;@UOTHER>" {
+		t.Errorf("escapeReply() = %q", got)
 	}
 }
 
@@ -83,7 +89,7 @@ func TestReplyMentionsOnlyThePromptsMentions(t *testing.T) {
 	if !strings.Contains(l.calls[0], "write the mention exactly as it is") {
 		t.Errorf("the LLM was not told how to mention: %q", l.calls[0])
 	}
-	if got := api.posts[0].values.Get("text"); got != "**High risk.** <!subteam^S0PR> please check. Also &lt;@U0SPAM&gt;." {
+	if got := api.posts[0].values.Get("text"); got != "**High risk.** <!subteam^S0PR> please check. Also &lt;@U0SPAM>." {
 		t.Errorf("text = %q", got)
 	}
 }

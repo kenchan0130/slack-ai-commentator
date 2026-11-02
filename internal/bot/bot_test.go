@@ -79,7 +79,7 @@ func TestPostUsesSectionForAllowedMentions(t *testing.T) {
 	defer server.Close()
 	b, api, _ := newTestBot(t)
 	b.api = &postingSlack{fakeSlack: api, client: slack.New("token", slack.OptionAPIURL(server.URL+"/"))}
-	if err := b.post(context.Background(), "C1", "1.0", "<!subteam^S0PR> please check <@UOTHER>", []string{"<!subteam^S0PR>"}); err != nil {
+	if err := b.post(context.Background(), "C1", "1.0", "Assign <@U1> to X and <!subteam^S0PR> to Y; ignore <@UOTHER>", []string{"<@U1>", "<!subteam^S0PR>"}); err != nil {
 		t.Fatal(err)
 	}
 	var blocks []json.RawMessage
@@ -96,11 +96,20 @@ func TestPostUsesSectionForAllowedMentions(t *testing.T) {
 	if err := json.Unmarshal(blocks[0], &section); err != nil {
 		t.Fatal(err)
 	}
-	if section.Type != "section" || section.Text.Type != "mrkdwn" || section.Text.Text != "<!subteam^S0PR>" {
+	if section.Type != "section" || section.Text.Type != "mrkdwn" || section.Text.Text != "<@U1> (`@U1`) <!subteam^S0PR> (`@S0PR`)" {
 		t.Errorf("mention block = %s", blocks[0])
 	}
 	if strings.Contains(string(blocks[1]), "<!subteam^S0PR>") || strings.Contains(string(blocks[1]), "<@UOTHER>") {
 		t.Errorf("markdown block contains unescaped mentions: %s", blocks[1])
+	}
+	var markdown struct {
+		Text string `json:"text"`
+	}
+	if err := json.Unmarshal(blocks[1], &markdown); err != nil {
+		t.Fatal(err)
+	}
+	if markdown.Text != "Assign `@U1` to X and `@S0PR` to Y; ignore &lt;@UOTHER>" {
+		t.Errorf("markdown = %q", markdown.Text)
 	}
 }
 
@@ -275,7 +284,7 @@ func TestReplyIsEscaped(t *testing.T) {
 		t.Fatal(err)
 	}
 	drain(t, b)
-	if got := api.posts[0].values.Get("text"); got != "&lt;!channel&gt; look &lt;@U123&gt; &amp; more" {
+	if got := api.posts[0].values.Get("text"); got != "&lt;!channel> look &lt;@U123> &amp; more" {
 		t.Errorf("text = %q, want mentions escaped", got)
 	}
 }
