@@ -361,6 +361,9 @@ const mentionNote = "\nTo mention someone, write the mention exactly as it is in
 // maxMarkdownChars is the most characters the markdown blocks of a Slack message may have.
 const maxMarkdownChars = 12000
 
+// maxSectionChars is the maximum length of a Slack section text object.
+const maxSectionChars = 3000
+
 func systemPrompt(r rule.Rule) string {
 	if rt := promptRichText(r); rt != nil {
 		if prompt, _ := promptFromRichText(*rt); prompt != "" {
@@ -445,8 +448,22 @@ func (b *Bot) post(ctx context.Context, channel, threadTS, text string, allowedM
 		}
 	}
 	blocks := make([]slack.Block, 0, 2)
-	if len(mentions) > 0 {
-		blocks = append(blocks, slack.NewSectionBlock(mrkdwn(strings.Join(mentions, " ")), nil, nil))
+	var section strings.Builder
+	for _, mention := range mentions {
+		if len(mention) > maxSectionChars {
+			return errors.New("mention exceeds Slack section limit")
+		}
+		if section.Len() > 0 && section.Len()+1+len(mention) > maxSectionChars {
+			blocks = append(blocks, slack.NewSectionBlock(mrkdwn(section.String()), nil, nil))
+			section.Reset()
+		}
+		if section.Len() > 0 {
+			section.WriteByte(' ')
+		}
+		section.WriteString(mention)
+	}
+	if section.Len() > 0 {
+		blocks = append(blocks, slack.NewSectionBlock(mrkdwn(section.String()), nil, nil))
 	}
 	if strings.TrimSpace(markdown) != "" {
 		blocks = append(blocks, slack.NewMarkdownBlock("", markdown))

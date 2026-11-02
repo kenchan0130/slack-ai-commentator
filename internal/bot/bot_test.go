@@ -113,6 +113,57 @@ func TestPostUsesSectionForAllowedMentions(t *testing.T) {
 	}
 }
 
+func TestPostSplitsManyMentions(t *testing.T) {
+	requests := make(chan string, 1)
+	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		requests <- r.FormValue("blocks")
+		w.Header().Set("Content-Type", "application/json")
+		_, _ = w.Write([]byte(`{"ok":true,"channel":"C1","ts":"1.0"}`))
+	}))
+	defer server.Close()
+	b, api, _ := newTestBot(t)
+	b.api = &postingSlack{fakeSlack: api, client: slack.New("token", slack.OptionAPIURL(server.URL+"/"))}
+	var mentions []string
+	for i := range 150 {
+		mentions = append(mentions, fmt.Sprintf("<@U%010d>", i))
+	}
+	if err := b.post(context.Background(), "C1", "1.0", strings.Join(mentions, " "), mentions); err != nil {
+		t.Fatal(err)
+	}
+	var blocks []struct {
+		Type string          `json:"type"`
+		Text json.RawMessage `json:"text"`
+	}
+	if err := json.Unmarshal([]byte(<-requests), &blocks); err != nil {
+		t.Fatal(err)
+	}
+	var sections []string
+	for _, block := range blocks {
+		if block.Type != "section" {
+			continue
+		}
+		var text struct {
+			Text string `json:"text"`
+		}
+		if err := json.Unmarshal(block.Text, &text); err != nil {
+			t.Fatal(err)
+		}
+		if len([]rune(text.Text)) > maxSectionChars {
+			t.Errorf("section has %d characters", len([]rune(text.Text)))
+		}
+		sections = append(sections, text.Text)
+	}
+	if len(sections) < 2 {
+		t.Fatalf("got %d sections, want multiple", len(sections))
+	}
+	joined := strings.Join(sections, " ")
+	for _, mention := range mentions {
+		if strings.Count(joined, mention) != 1 {
+			t.Errorf("mention %q was not present exactly once", mention)
+		}
+	}
+}
+
 type fakeSlack struct {
 	mu       sync.Mutex
 	messages map[string]slack.Message // by ts
