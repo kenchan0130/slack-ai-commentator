@@ -1,0 +1,13 @@
+# yaml-language-server: $schema=https://raw.githubusercontent.com/jdx/jactionlint/main/schema/jactionlint-config.json
+profile: default
+
+ignores:
+  # sync-go-version.yml commits the matching go.mod to the pull requests of Dependabot that update the golang image.
+  # It needs workflow_run to push with a token that can run CI again, and it checks that the pull request is open,
+  # opened by Dependabot from this repository and at the commit of the run before it checks anything out.
+  - rule: dangerous-triggers
+    file: .github/workflows/sync-go-version.yml
+    reason: runs only for pull requests of Dependabot from this repository, checked before anything is checked out
+  - rule: excessive-permissions
+    file: .github/workflows/sync-go-version.yml
+    reason: contents write pushes the go.mod commit and actions write runs CI again, only for pull requests of Dependabot

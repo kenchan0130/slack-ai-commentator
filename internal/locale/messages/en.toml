@@ -1,0 +1,50 @@
+Setup = "Thanks for inviting me. Add a rule to choose which posts I reply to and with what prompt."
+AddRule = "Add a rule"
+EditRule = "Edit the rule"
+Edit = "Edit"
+Delete = "Delete"
+Cancel = "Cancel"
+Save = "Save"
+DeleteConfirmTitle = "Delete this rule?"
+DeleteConfirmText = "This can not be undone."
+
+TriggerMention = "When I am mentioned"
+TriggerMessage = "Every new post in this channel"
+TriggerReaction = "When a post gets a reaction"
+
+Everyone = "everyone"
+RuleSummary = "Reply when: {{.Trigger}}\nPosts by: {{.Authors}}"
+ListHeader = "Rules in <#{{.Channel}}>: {{.Count}}"
+ListTruncated = " (showing the first {{.Count}})"
+Saved = "Saved the rule."
+
+ModalIntro = "I reply in the thread of matching posts in <#{{.Channel}}> with what AI writes for this prompt."
+ModalTrigger = "Reply"
+ModalTriggerPlaceholder = "Choose a trigger"
+ModalEmoji = "Reaction emoji"
+ModalEmojiHint = "I reply when a post gets this reaction. Type to search."
+ModalEmojiPlaceholder = "Choose an emoji"
+ModalAuthors = "Posts by"
+ModalAuthorsHint = "Comma-separated user IDs, bot IDs or app names. Leave empty for everyone."
+ModalPrompt = "Prompt"
+ModalPromptHint = "The post is given to AI after this prompt. A reply can mention the users and user groups you mention here with @."
+ModalPromptPlaceholder = "Evaluate how this post relates to our company and reply with ..."
+
+Help = """
+*How to use {{.Command}}*
+I reply in the thread of posts in this channel with what AI writes for the prompt of a rule.
+
+`{{.Command}} list` Show the rules of this channel. You can edit and delete them there.
+`{{.Command}} add` Add a rule.
+`{{.Command}} help` Show this help."""
+UnknownCommand = "There is no command `{{.Text}}`."
+ListRules = "Show the rules"
+
+ErrorOpenModal = "Failed to open the dialog. Please try again."
+ErrorTooManyRules = "A channel can have {{.Count}} rules at most. Delete one to add another."
+ErrorBusy = "I am too busy to reply now. Please try again later."
+ErrorEmojiRequired = "Choose the emoji for the reaction trigger."
+ErrorPromptRequired = "Enter a prompt."
+ErrorReadRules = "Failed to read the rules. Please check the server log."
+ErrorSaveRule = "Failed to save the rule. Please check the server log."
+ErrorGenerate = ":warning: Failed to generate a reply. Please check the server log."

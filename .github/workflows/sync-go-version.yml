@@ -1,0 +1,85 @@
+name: Sync Dependabot Go version
+
+on:
+  workflow_run:
+    workflows: [CI]
+    types: [completed]
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.event.workflow_run.head_branch }}
+  cancel-in-progress: true
+
+permissions:
+  actions: write
+  contents: write
+  pull-requests: read
+
+jobs:
+  sync:
+    if: >-
+      github.event.workflow_run.event == 'pull_request' &&
+      github.event.workflow_run.actor.login == 'dependabot[bot]' &&
+      startsWith(github.event.workflow_run.head_branch, 'dependabot/docker/golang-') &&
+      github.event.workflow_run.head_repository.full_name == github.repository &&
+      github.event.workflow_run.pull_requests[0].number != null
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    env:
+      PR_NUMBER: ${{ github.event.workflow_run.pull_requests[0].number }}
+      HEAD_BRANCH: ${{ github.event.workflow_run.head_branch }}
+      HEAD_SHA: ${{ github.event.workflow_run.head_sha }}
+    steps:
+      - name: Validate Dependabot pull request
+        id: validate
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          set -o pipefail
+          if gh api "repos/$GITHUB_REPOSITORY/pulls/$PR_NUMBER" | jq -e \
+            --arg repo "$GITHUB_REPOSITORY" \
+            --arg branch "$HEAD_BRANCH" \
+            --arg sha "$HEAD_SHA" \
+            '.state == "open" and
+             .user.login == "dependabot[bot]" and
+             .base.ref == "main" and
+             .head.repo.full_name == $repo and
+             .head.ref == $branch and
+             .head.sha == $sha' > /dev/null; then
+            echo 'valid=true' >> "$GITHUB_OUTPUT"
+          fi
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        if: steps.validate.outputs.valid == 'true'
+        with:
+          ref: main
+          path: trusted
+          persist-credentials: false
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        if: steps.validate.outputs.valid == 'true'
+        with:
+          ref: ${{ github.event.workflow_run.head_sha }}
+          path: target
+          persist-credentials: false
+      - name: Update go.mod
+        if: steps.validate.outputs.valid == 'true'
+        id: update
+        run: |
+          sh trusted/scripts/sync-go-version.sh --write target
+          if ! git -C target diff --quiet -- go.mod; then
+            echo 'changed=true' >> "$GITHUB_OUTPUT"
+          fi
+      - name: Commit matching Go version
+        if: steps.update.outputs.changed == 'true'
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          git -C target config user.name 'github-actions[bot]'
+          git -C target config user.email '41898282+github-actions[bot]@users.noreply.github.com'
+          git -C target add go.mod
+          git -C target -c core.hooksPath=/dev/null commit -m 'Sync go.mod with Docker Go version [dependabot skip]'
+          gh auth setup-git
+          git -C target push origin "HEAD:refs/heads/$HEAD_BRANCH"
+      - name: Run CI on updated commit
+        if: steps.update.outputs.changed == 'true'
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: gh workflow run ci.yml --ref "$HEAD_BRANCH"

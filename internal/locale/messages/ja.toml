@@ -1,0 +1,50 @@
+Setup = "招待ありがとうございます。ルールを追加して、どの投稿にどんなプロンプトで返信するかを設定してください。"
+AddRule = "ルールを追加"
+EditRule = "ルールを編集"
+Edit = "編集"
+Delete = "削除"
+Cancel = "キャンセル"
+Save = "保存"
+DeleteConfirmTitle = "このルールを削除しますか？"
+DeleteConfirmText = "削除すると元に戻せません。"
+
+TriggerMention = "メンションされたとき"
+TriggerMessage = "このチャンネルのすべての新しい投稿"
+TriggerReaction = "投稿にリアクションが付いたとき"
+
+Everyone = "全員"
+RuleSummary = "返信のタイミング: {{.Trigger}}\n対象の投稿者: {{.Authors}}"
+ListHeader = "<#{{.Channel}}> のルール: {{.Count}}件"
+ListTruncated = "（最初の{{.Count}}件を表示）"
+Saved = "ルールを保存しました。"
+
+ModalIntro = "<#{{.Channel}}> で条件に合う投稿のスレッドに、このプロンプトで AI が書いた返信を投稿します。"
+ModalTrigger = "返信するタイミング"
+ModalTriggerPlaceholder = "タイミングを選択"
+ModalEmoji = "リアクションの絵文字"
+ModalEmojiHint = "投稿にこの絵文字のリアクションが付いたら返信します。入力すると候補を絞り込めます。"
+ModalEmojiPlaceholder = "絵文字を選択"
+ModalAuthors = "対象の投稿者"
+ModalAuthorsHint = "ユーザーID・ボットID・アプリ名をカンマ区切りで入力します。空欄なら全員が対象です。"
+ModalPrompt = "プロンプト"
+ModalPromptHint = "このプロンプトの後に投稿の本文を付けて AI に渡します。@ でメンションした人やグループは、返信でもメンションできます。"
+ModalPromptPlaceholder = "この投稿が当社にどう関係するかを評価して…"
+
+Help = """
+*{{.Command}} の使い方*
+このチャンネルの投稿のスレッドに、ルールのプロンプトで AI が書いた返信を投稿します。
+
+`{{.Command}} list` このチャンネルのルール一覧を表示します。編集・削除もここからできます。
+`{{.Command}} add` ルールを追加します。
+`{{.Command}} help` この使い方を表示します。"""
+UnknownCommand = "`{{.Text}}` というコマンドはありません。"
+ListRules = "ルール一覧"
+
+ErrorOpenModal = "ダイアログを開けませんでした。もう一度お試しください。"
+ErrorTooManyRules = "1つのチャンネルに設定できるルールは{{.Count}}件までです。追加するには既存のルールを削除してください。"
+ErrorBusy = "混み合っているため返信できませんでした。しばらくしてからもう一度お試しください。"
+ErrorEmojiRequired = "リアクションの絵文字を選択してください。"
+ErrorPromptRequired = "プロンプトを入力してください。"
+ErrorReadRules = "ルールを読み込めませんでした。サーバーのログを確認してください。"
+ErrorSaveRule = "ルールを保存できませんでした。サーバーのログを確認してください。"
+ErrorGenerate = ":warning: 返信を生成できませんでした。サーバーのログを確認してください。"

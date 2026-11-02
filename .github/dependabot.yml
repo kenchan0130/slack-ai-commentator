@@ -1,0 +1,25 @@
+version: 2
+updates:
+  - package-ecosystem: "gomod"
+    directory: "/"
+    schedule:
+      interval: monthly
+      time: "20:00"
+    # Wait a week after a release, so a broken or malicious version can be found before it is used.
+    cooldown:
+      default-days: 7
+  - package-ecosystem: "docker"
+    directory: "/"
+    # sync-go-version.yml adds matching go.mod changes to golang image PRs.
+    schedule:
+      interval: monthly
+      time: "20:00"
+    cooldown:
+      default-days: 7
+  - package-ecosystem: "github-actions"
+    directory: "/"
+    schedule:
+      interval: monthly
+      time: "20:00"
+    cooldown:
+      default-days: 7

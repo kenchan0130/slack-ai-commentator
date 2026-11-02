@@ -1,0 +1,32 @@
+# Example for local testing with tensai; adapt it to your environment.
+# Create .env with SLACK_BOT_TOKEN=xoxb-... and SLACK_APP_TOKEN=xapp-... lines,
+# then run `docker compose -f compose.example.yaml up --build -d`.
+services:
+  slack-ai-commentator:
+    build: .
+    restart: unless-stopped
+    env_file: .env
+    environment:
+      UI_LANGUAGE: ja
+      STORE: file:///opt/data/rules.json
+      LLM_PROVIDER: openai
+      LLM_URL: http://tensai:8080/v1
+      LLM_MODEL: qwen3
+      LLM_MAX_TOKENS: "1024"
+      LLM_CONCURRENCY: "1"
+    volumes:
+      - replier-data:/opt/data
+    depends_on:
+      - tensai
+
+  tensai:
+    image: ghcr.io/mattn/tensai:v0.0.35@sha256:65c43c24d2edb545ae673c76f6be37f4f43be8868ba2b535605b70c9e33cc105
+    restart: unless-stopped
+    # The model is downloaded on the first start.
+    command: serve -model Qwen/Qwen3-4B-GGUF/Qwen3-4B-Q8_0.gguf
+    volumes:
+      - tensai-cache:/cache
+
+volumes:
+  replier-data:
+  tensai-cache:
