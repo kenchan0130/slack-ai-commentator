@@ -123,7 +123,7 @@ func TestPostSplitsManyMentions(t *testing.T) {
 	defer server.Close()
 	b, api, _ := newTestBot(t)
 	b.api = &postingSlack{fakeSlack: api, client: slack.New("token", slack.OptionAPIURL(server.URL+"/"))}
-	var mentions []string
+	mentions := make([]string, 0, 150)
 	for i := range 150 {
 		mentions = append(mentions, fmt.Sprintf("<@U%010d>", i))
 	}
